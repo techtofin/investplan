@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Wealth Allocation System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2pdf for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #2563eb, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        /* PDF specific styles to ensure chart renders well */
+        #resultsContainer {
+            background-color: #f3f4f6;
+            padding: 10px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="text-gray-800 p-4 md:p-8 min-h-screen">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-3 gradient-text">Smart Wealth Allocator</h1>
+                <p class="text-gray-500 text-lg">Your dynamic portfolio blueprint & future projection.</p>
+            </div>
+            <button onclick="downloadPDF()" class="bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition duration-300 flex items-center gap-2 whitespace-nowrap">
+                <i class="fas fa-file-pdf text-xl"></i> Download PDF
+            </button>
+        </header>
+
+        <!-- Input Section -->
+        <div class="glass-panel rounded-2xl shadow-xl p-6 md:p-8 mb-10 max-w-2xl mx-auto transform transition duration-300">
+            <label for="monthlyAmount" class="block text-sm font-semibold text-gray-700 mb-2">Total Monthly Investment (₹)</label>
+            <div class="flex flex-col md:flex-row gap-4 mb-6">
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <span class="text-gray-500 font-bold">₹</span>
+                    </div>
+                    <input type="number" id="monthlyAmount" value="50000" class="block w-full pl-10 pr-4 py-4 text-xl border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" placeholder="e.g. 36000">
+                </div>
+                <button onclick="calculatePlan()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2">
+                    <i class="fas fa-calculator"></i> Generate
+                </button>
+            </div>
+            
+            <!-- Dynamic Toggles -->
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row gap-4 justify-around">
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" id="includeSSY" checked class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" onchange="calculatePlan()">
+                    <span class="text-sm font-medium text-gray-700"><i class="fas fa-child text-pink-500 mr-1"></i> Include SSY</span>
+                </label>
+                <label class="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" id="includeNPS" checked class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" onchange="calculatePlan()">
+                    <span class="text-sm font-medium text-gray-700"><i class="fas fa-umbrella text-purple-500 mr-1"></i> Include NPS</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Results Container -->
+        <div id="resultsContainer" class="space-y-10">
+            <!-- Header for PDF Export -->
+            <div id="pdfHeader" class="hidden text-center mb-6">
+                <h2 class="text-3xl font-extrabold text-blue-800">My Wealth Allocation Plan</h2>
+                <p class="text-gray-600" id="pdfTotalInvest"></p>
+            </div>
+
+            <!-- Platform Allocation Summary -->
+            <div>
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2"><i class="fas fa-layer-group text-blue-600 mr-2"></i>Allocation by Platform</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="cardsContainer">
+                    
+                    <!-- Zerodha -->
+                    <div class="glass-panel rounded-2xl p-6 shadow-lg border-t-4 border-blue-500 bg-white">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">Account 1 (Zerodha)</h3>
+                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">Core Vault</span>
+                        </div>
+                        <div class="text-3xl font-extrabold text-blue-600 mb-4" id="valZerodha">₹0</div>
+                        <ul class="space-y-3 text-sm text-gray-600">
+                            <li class="flex justify-between border-b pb-2">
+                                <span id="lblNifty"><i class="fas fa-chart-line mr-2"></i>NIFTYBEES</span>
+                                <strong id="valNifty">₹0</strong>
+                            </li>
+                            <li class="flex justify-between">
+                                <span id="lblGold"><i class="fas fa-coins mr-2 text-yellow-500"></i>GOLDBEES</span>
+                                <strong id="valGold">₹0</strong>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Groww -->
+                    <div class="glass-panel rounded-2xl p-6 shadow-lg border-t-4 border-green-500 bg-white">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">Account 2 (Groww)</h3>
+                            <span class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full">Active Growth</span>
+                        </div>
+                        <div class="text-3xl font-extrabold text-green-600 mb-4" id="valGroww">₹0</div>
+                        <ul class="space-y-3 text-sm text-gray-600">
+                            <li class="flex justify-between border-b pb-2">
+                                <span id="lblFlexi"><i class="fas fa-rocket mr-2"></i>Flexi Cap</span>
+                                <strong id="valFlexi">₹0</strong>
+                            </li>
+                            <li class="flex justify-between border-b pb-2">
+                                <span id="lblMid"><i class="fas fa-fire mr-2 text-orange-500"></i>Mid Cap</span>
+                                <strong id="valMid">₹0</strong>
+                            </li>
+                            <li class="flex justify-between">
+                                <span id="lblDebt"><i class="fas fa-shield-alt mr-2 text-gray-500"></i>Gilt/Debt</span>
+                                <strong id="valDebt">₹0</strong>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Govt -->
+                    <div id="cardGovt" class="glass-panel rounded-2xl p-6 shadow-lg border-t-4 border-purple-500 bg-white">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">Govt. Portals</h3>
+                            <span class="bg-purple-100 text-purple-800 text-xs font-bold px-3 py-1 rounded-full">100% Safe</span>
+                        </div>
+                        <div class="text-3xl font-extrabold text-purple-600 mb-4" id="valGovt">₹0</div>
+                        <ul class="space-y-3 text-sm text-gray-600">
+                            <li id="liSSY" class="flex justify-between border-b pb-2">
+                                <span id="lblSSY"><i class="fas fa-child mr-2 text-pink-500"></i>SSY</span>
+                                <strong id="valSSY">₹0</strong>
+                            </li>
+                            <li id="liNPS" class="flex justify-between">
+                                <span id="lblNPS"><i class="fas fa-umbrella mr-2"></i>NPS</span>
+                                <strong id="valNPS">₹0</strong>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Future Wealth Projection -->
+            <div class="glass-panel rounded-2xl shadow-xl p-6 md:p-8 bg-white">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-seedling text-green-500 mr-2"></i>Future Wealth Projection</h2>
+                        <p class="text-sm text-gray-500 mt-1">Assuming a blended conservative CAGR of 11.5% across all selected assets.</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Chart -->
+                    <div class="lg:col-span-2 bg-white p-4 rounded-xl border">
+                        <canvas id="wealthChart" height="250"></canvas>
+                    </div>
+
+                    <!-- Milestone Table -->
+                    <div class="flex flex-col justify-center space-y-4">
+                        <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                            <h4 class="text-sm font-bold text-blue-800 mb-1">10 Year Value</h4>
+                            <div class="text-2xl font-black text-blue-900" id="val10Yr">₹0</div>
+                            <div class="text-xs text-blue-600 mt-1" id="inv10Yr">Invested: ₹0</div>
+                        </div>
+                        <div class="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                            <h4 class="text-sm font-bold text-purple-800 mb-1">15 Year Value</h4>
+                            <div class="text-2xl font-black text-purple-900" id="val15Yr">₹0</div>
+                            <div class="text-xs text-purple-600 mt-1" id="inv15Yr">Invested: ₹0</div>
+                        </div>
+                        <div class="bg-green-50 rounded-xl p-4 border border-green-100">
+                            <h4 class="text-sm font-bold text-green-800 mb-1">20 Year Value</h4>
+                            <div class="text-2xl font-black text-green-900" id="val20Yr">₹0</div>
+                            <div class="text-xs text-green-600 mt-1" id="inv20Yr">Invested: ₹0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let wealthChartInstance = null;
+
+        // Formatting function for Indian Rupees
+        const formatINR = (amount) => {
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                maximumFractionDigits: 0
+            }).format(Math.round(amount));
+        };
+
+        // Compound Interest calculation formula for SIP
+        const calculateSIP = (monthlyInvestment, annualRate, years) => {
+            const monthlyRate = annualRate / 12 / 100;
+            const months = years * 12;
+            const futureValue = monthlyInvestment * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate) * (1 + monthlyRate);
+            const totalInvested = monthlyInvestment * months;
+            return {
+                invested: totalInvested,
+                value: futureValue
+            };
+        };
+
+        function calculatePlan() {
+            const amountInput = document.getElementById('monthlyAmount').value;
+            const total = parseFloat(amountInput);
+
+            if (isNaN(total) || total <= 0) {
+                return; // Silently return or handle
+            }
+
+            const includeSSY = document.getElementById('includeSSY').checked;
+            const includeNPS = document.getElementById('includeNPS').checked;
+
+            // Base weights (relative ratio setup)
+            let wNifty = 24;
+            let wFlexi = 16;
+            let wMid = 16;
+            let wDebt = 10;
+            let wGold = 10;
+            let wSSY = includeSSY ? 14 : 0;
+            let wNPS = includeNPS ? 10 : 0;
+
+            const totalWeight = wNifty + wFlexi + wMid + wDebt + wGold + wSSY + wNPS;
+
+            // Calculate actual percentages dynamically
+            const pNifty = wNifty / totalWeight;
+            const pFlexi = wFlexi / totalWeight;
+            const pMid = wMid / totalWeight;
+            const pDebt = wDebt / totalWeight;
+            const pGold = wGold / totalWeight;
+            const pSSY = wSSY / totalWeight;
+            const pNPS = wNPS / totalWeight;
+
+            // Update Labels with new Percentages
+            document.getElementById('lblNifty').innerHTML = `<i class="fas fa-chart-line mr-2"></i>NIFTYBEES (${(pNifty*100).toFixed(1)}%)`;
+            document.getElementById('lblGold').innerHTML = `<i class="fas fa-coins mr-2 text-yellow-500"></i>GOLDBEES (${(pGold*100).toFixed(1)}%)`;
+            document.getElementById('lblFlexi').innerHTML = `<i class="fas fa-rocket mr-2"></i>Flexi Cap (${(pFlexi*100).toFixed(1)}%)`;
+            document.getElementById('lblMid').innerHTML = `<i class="fas fa-fire mr-2 text-orange-500"></i>Mid Cap (${(pMid*100).toFixed(1)}%)`;
+            document.getElementById('lblDebt').innerHTML = `<i class="fas fa-shield-alt mr-2 text-gray-500"></i>Gilt/Debt (${(pDebt*100).toFixed(1)}%)`;
+            document.getElementById('lblSSY').innerHTML = `<i class="fas fa-child mr-2 text-pink-500"></i>SSY (${(pSSY*100).toFixed(1)}%)`;
+            document.getElementById('lblNPS').innerHTML = `<i class="fas fa-umbrella mr-2 text-purple-500"></i>NPS (${(pNPS*100).toFixed(1)}%)`;
+
+            // Calculate Amounts
+            const vNifty = total * pNifty;
+            const vGold = total * pGold;
+            const vZerodha = vNifty + vGold;
+
+            const vFlexi = total * pFlexi;
+            const vMid = total * pMid;
+            const vDebt = total * pDebt;
+            const vGroww = vFlexi + vMid + vDebt;
+
+            const vSSY = total * pSSY;
+            const vNPS = total * pNPS;
+            const vGovt = vSSY + vNPS;
+
+            // Update DOM Values
+            document.getElementById('valZerodha').innerText = formatINR(vZerodha);
+            document.getElementById('valNifty').innerText = formatINR(vNifty);
+            document.getElementById('valGold').innerText = formatINR(vGold);
+
+            document.getElementById('valGroww').innerText = formatINR(vGroww);
+            document.getElementById('valFlexi').innerText = formatINR(vFlexi);
+            document.getElementById('valMid').innerText = formatINR(vMid);
+            document.getElementById('valDebt').innerText = formatINR(vDebt);
+
+            document.getElementById('valGovt').innerText = formatINR(vGovt);
+            document.getElementById('valSSY').innerText = formatINR(vSSY);
+            document.getElementById('valNPS').innerText = formatINR(vNPS);
+
+            // Handle UI Visibility for Govt Section
+            const cardGovt = document.getElementById('cardGovt');
+            const liSSY = document.getElementById('liSSY');
+            const liNPS = document.getElementById('liNPS');
+
+            if (!includeSSY && !includeNPS) {
+                cardGovt.style.display = 'none';
+                document.getElementById('cardsContainer').classList.remove('md:grid-cols-3');
+                document.getElementById('cardsContainer').classList.add('md:grid-cols-2');
+            } else {
+                cardGovt.style.display = 'block';
+                document.getElementById('cardsContainer').classList.add('md:grid-cols-3');
+                document.getElementById('cardsContainer').classList.remove('md:grid-cols-2');
+                
+                liSSY.style.display = includeSSY ? 'flex' : 'none';
+                liNPS.style.display = includeNPS ? 'flex' : 'none';
+                
+                // Fix bottom border if only one is showing
+                if(includeSSY && !includeNPS) {
+                    liSSY.classList.remove('border-b', 'pb-2');
+                } else {
+                    liSSY.classList.add('border-b', 'pb-2');
+                }
+            }
+
+            // Update Header for PDF
+            document.getElementById('pdfTotalInvest').innerText = `Monthly Investment: ${formatINR(total)}`;
+
+            // Calculate Future Wealth (Blended CAGR of 11.5%)
+            const rate = 11.5; 
+            
+            const yr5 = calculateSIP(total, rate, 5);
+            const yr10 = calculateSIP(total, rate, 10);
+            const yr15 = calculateSIP(total, rate, 15);
+            const yr20 = calculateSIP(total, rate, 20);
+
+            // Update Milestone Cards
+            document.getElementById('val10Yr').innerText = formatINR(yr10.value);
+            document.getElementById('inv10Yr').innerText = `Invested: ${formatINR(yr10.invested)}`;
+            
+            document.getElementById('val15Yr').innerText = formatINR(yr15.value);
+            document.getElementById('inv15Yr').innerText = `Invested: ${formatINR(yr15.invested)}`;
+            
+            document.getElementById('val20Yr').innerText = formatINR(yr20.value);
+            document.getElementById('inv20Yr').innerText = `Invested: ${formatINR(yr20.invested)}`;
+
+            // Render Chart
+            renderChart([0, 5, 10, 15, 20], 
+                       [0, yr5.invested, yr10.invested, yr15.invested, yr20.invested], 
+                       [0, yr5.value, yr10.value, yr15.value, yr20.value]);
+        }
+
+        function renderChart(labels, investedData, wealthData) {
+            const ctx = document.getElementById('wealthChart').getContext('2d');
+            
+            if (wealthChartInstance) {
+                wealthChartInstance.destroy();
+            }
+
+            wealthChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.map(y => y === 0 ? 'Today' : `Year ${y}`),
+                    datasets: [
+                        {
+                            label: 'Total Value (₹)',
+                            data: wealthData,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Total Invested (₹)',
+                            data: investedData,
+                            borderColor: '#9ca3af',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0 // Disable animation for instantaneous PDF capture
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: function(value) {
+                                    if(value >= 10000000) return '₹' + (value / 10000000).toFixed(1) + ' Cr';
+                                    if(value >= 100000) return '₹' + (value / 100000).toFixed(0) + ' L';
+                                    return '₹' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function downloadPDF() {
+            // Ensure values are up to date before snapshot
+            calculatePlan();
+
+            const element = document.getElementById('resultsContainer');
+            
+            // Show header specifically for PDF
+            document.getElementById('pdfHeader').classList.remove('hidden');
+
+            const opt = {
+                margin:       0.3,
+                filename:     'My_Wealth_Allocation_Plan.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#f3f4f6' },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Generate PDF then hide the header again
+            html2pdf().set(opt).from(element).save().then(() => {
+                document.getElementById('pdfHeader').classList.add('hidden');
+            });
+        }
+
+        // Run calculation on initial load
+        window.onload = function() {
+            calculatePlan();
+            
+            // Allow triggering calculation via Enter key
+            document.getElementById('monthlyAmount').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    calculatePlan();
+                }
+            });
+        };
+    </script>
+</body>
+</html>
